@@ -10,3 +10,8 @@
 .env/
 .venv/
 venv/
+
+.editorconfig
+.envrc
+.mypy_cache
+pyproject.toml
