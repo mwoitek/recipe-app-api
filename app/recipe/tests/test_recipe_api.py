@@ -35,6 +35,11 @@ def create_recipe(user, **params):
     return recipe
 
 
+def create_user(**params):
+    """Create and return a new user."""
+    return get_user_model().objects.create_user(**params)  # pyright: ignore
+
+
 class PublicRecipeApiTests(TestCase):
     """Test unauthenticated API requests."""
 
@@ -51,7 +56,7 @@ class PrivateRecipeApiTests(TestCase):
     """Test authenticated API requests."""
 
     def setUp(self):
-        self.user = get_user_model().objects.create_user(  # pyright: ignore
+        self.user = create_user(
             email="user@example.com",
             password="testpass123",
         )
@@ -75,7 +80,7 @@ class PrivateRecipeApiTests(TestCase):
 
     def test_recipe_list_limited_to_user(self):
         """Test list of recipes is limited to authenticated user."""
-        other_user = get_user_model().objects.create_user(  # pyright: ignore
+        other_user = create_user(
             email="other@example.com",
             password="password123",
         )
@@ -122,3 +127,92 @@ class PrivateRecipeApiTests(TestCase):
         for k, v in payload.items():
             self.assertEqual(getattr(recipe, k), v)
         self.assertEqual(recipe.user, self.user)
+
+    def test_partial_update(self):
+        """Test partial update of a recipe."""
+        original_link = "http://example.com/recipe.pdf"
+        recipe = create_recipe(
+            user=self.user,
+            title="Sample recipe title",
+            link=original_link,
+        )
+        url = detail_url(recipe.id)  # pyright: ignore
+
+        payload = {"title": "New recipe title"}
+        res = self.client.patch(url, data=payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.title, payload["title"])
+        self.assertEqual(recipe.link, original_link)
+        self.assertEqual(recipe.user, self.user)
+
+    def test_full_update(self):
+        """Test full update of recipe."""
+        recipe = create_recipe(
+            user=self.user,
+            title="Sample recipe title",
+            link="http://example.com/recipe.pdf",
+            description="Sample recipe description.",
+        )
+        url = detail_url(recipe.id)  # pyright: ignore
+
+        payload = {
+            "title": "New recipe title",
+            "link": "http://example.com/new-recipe.pdf",
+            "description": "New recipe description",
+            "time_minutes": 10,
+            "price": Decimal("2.50"),
+        }
+        res = self.client.put(url, data=payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        recipe.refresh_from_db()
+        for k, v in payload.items():
+            self.assertEqual(getattr(recipe, k), v)
+        self.assertEqual(recipe.user, self.user)
+
+    def test_update_user_returns_error(self):
+        """Test changing the recipe user results in an error."""
+        recipe = create_recipe(user=self.user)
+        url = detail_url(recipe.id)  # pyright: ignore
+
+        new_user = create_user(
+            email="user2@example.com",
+            password="test123",
+        )
+        payload = {"user": new_user.id}
+        self.client.patch(url, data=payload)
+
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.user, self.user)
+
+    def test_delete_recipe(self):
+        """Test deleting a recipe successful."""
+        recipe = create_recipe(user=self.user)
+        url = detail_url(recipe.id)  # pyright: ignore
+
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            Recipe.objects.filter(
+                id=recipe.id,  # pyright: ignore
+            ).exists()
+        )
+
+    def test_delete_other_users_recipe_error(self):
+        """Test trying to delete another user's recipe gives error."""
+        new_user = create_user(
+            email="user2@example.com",
+            password="test123",
+        )
+        recipe = create_recipe(user=new_user)
+        url = detail_url(recipe.id)  # pyright: ignore
+
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(
+            Recipe.objects.filter(
+                id=recipe.id,  # pyright: ignore
+            ).exists()
+        )
