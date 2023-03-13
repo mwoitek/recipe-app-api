@@ -50,8 +50,3 @@ class TagViewSet(
     def get_queryset(self):
         """Filter queryset to authenticated user."""
         return self.queryset.filter(user=self.request.user).order_by("-name")
-
-    # TODO: Check if this is necessary
-    # def perform_create(self, serializer):
-    #     """Create a new tag."""
-    #     serializer.save(user=self.request.user)
