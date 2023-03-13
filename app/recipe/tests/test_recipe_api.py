@@ -279,3 +279,58 @@ class PrivateRecipeApiTests(TestCase):
                 user=self.user,
             ).exists()
             self.assertTrue(exists)
+
+    def test_create_tag_on_update(self):
+        """Test creating tag when updating a recipe."""
+        recipe = create_recipe(user=self.user)
+        url = detail_url(recipe.id)  # pyright: ignore
+
+        payload = {
+            "tags": [{"name": "Lunch"}],
+        }
+        res = self.client.patch(
+            url,
+            data=payload,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        new_tag = Tag.objects.get(user=self.user, name="Lunch")
+        self.assertIn(new_tag, recipe.tags.all())
+
+    def test_update_recipe_assign_tag(self):
+        """Test assigning an existing tag when updating a recipe."""
+        recipe = create_recipe(user=self.user)
+        tag_breakfast = Tag.objects.create(user=self.user, name="Breakfast")
+        recipe.tags.add(tag_breakfast)
+
+        url = detail_url(recipe.id)  # pyright: ignore
+        tag_lunch = Tag.objects.create(user=self.user, name="Lunch")
+        payload = {
+            "tags": [{"name": "Lunch"}],
+        }
+        res = self.client.patch(
+            url,
+            data=payload,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.assertIn(tag_lunch, recipe.tags.all())
+        self.assertNotIn(tag_breakfast, recipe.tags.all())
+
+    def test_clear_recipe_tags(self):
+        """Test clearing a recipe's tags."""
+        tag = Tag.objects.create(user=self.user, name="Dessert")
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(tag)
+
+        url = detail_url(recipe.id)  # pyright: ignore
+        payload = {"tags": []}
+        res = self.client.patch(
+            url,
+            data=payload,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.tags.count(), 0)
