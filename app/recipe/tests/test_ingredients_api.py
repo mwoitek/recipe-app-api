@@ -13,6 +13,11 @@ from rest_framework.test import APIClient
 INGREDIENTS_URL = reverse("recipe:ingredient-list")
 
 
+def detail_url(ingredient_id):
+    """Create and return an ingredient detail URL."""
+    return reverse("recipe:ingredient-detail", args=[ingredient_id])
+
+
 def create_user(email="user@example.com", password="testpass123"):
     """Create and return user."""
     return get_user_model().objects.create_user(  # pyright: ignore
@@ -75,3 +80,15 @@ class PrivateIngredientsApiTests(TestCase):
             res_data[0]["id"],
             ingredient.id,  # pyright: ignore
         )
+
+    def test_update_ingredient(self):
+        """Test updating an ingredient."""
+        ingredient = Ingredient.objects.create(user=self.user, name="Cilantro")
+        url = detail_url(ingredient.id)  # pyright: ignore
+
+        payload = {"name": "Coriander"}
+        res = self.client.patch(url, data=payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        ingredient.refresh_from_db()
+        self.assertEqual(ingredient.name, payload["name"])
