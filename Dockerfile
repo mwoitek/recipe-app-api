@@ -22,7 +22,11 @@ RUN python -m venv /py && \
     rm -rf /tmp && \
     apk del tmp-build-deps && \
     addgroup -g 1000 django && \
-    adduser -u 1000 -D -H -S -G django django-user
+    adduser -u 1000 -D -H -S -G django django-user && \
+    mkdir -p /vol/web/media && \
+    mkdir -p /vol/web/static && \
+    chown -R django-user:django /vol && \
+    chmod -R 755 /vol
 
 ENV PATH="/py/bin:$PATH"
 
