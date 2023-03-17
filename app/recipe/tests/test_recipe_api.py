@@ -461,6 +461,52 @@ class PrivateRecipeApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(recipe.ingredients.count(), 0)
 
+    def test_filter_by_tags(self):
+        """Test filtering recipes by tags."""
+        r1 = create_recipe(user=self.user, title="Thai Vegetable Curry")
+        r2 = create_recipe(user=self.user, title="Aubergine with Tahini")
+        r3 = create_recipe(user=self.user, title="Fish and chips")
+
+        tag1 = Tag.objects.create(user=self.user, name="Vegan")
+        tag2 = Tag.objects.create(user=self.user, name="Vegetarian")
+
+        r1.tags.add(tag1)
+        r2.tags.add(tag2)
+
+        params = {"tags": f"{tag1.id},{tag2.id}"}  # pyright: ignore
+        res = self.client.get(RECIPES_URL, params)
+
+        s1 = RecipeSerializer(r1)
+        s2 = RecipeSerializer(r2)
+        s3 = RecipeSerializer(r3)
+        res_data = res.data  # pyright: ignore
+        self.assertIn(s1.data, res_data)
+        self.assertIn(s2.data, res_data)
+        self.assertNotIn(s3.data, res_data)
+
+    def test_filter_by_ingredients(self):
+        """Test filtering recipes by ingredients."""
+        r1 = create_recipe(user=self.user, title="Posh Beans on Toast")
+        r2 = create_recipe(user=self.user, title="Chicken Cacciatore")
+        r3 = create_recipe(user=self.user, title="Red Lentil Dahl")
+
+        in1 = Ingredient.objects.create(user=self.user, name="Feta Cheese")
+        in2 = Ingredient.objects.create(user=self.user, name="Chicken")
+
+        r1.ingredients.add(in1)
+        r2.ingredients.add(in2)
+
+        params = {"ingredients": f"{in1.id},{in2.id}"}  # pyright: ignore
+        res = self.client.get(RECIPES_URL, params)
+
+        s1 = RecipeSerializer(r1)
+        s2 = RecipeSerializer(r2)
+        s3 = RecipeSerializer(r3)
+        res_data = res.data  # pyright: ignore
+        self.assertIn(s1.data, res_data)
+        self.assertIn(s2.data, res_data)
+        self.assertNotIn(s3.data, res_data)
+
 
 class ImageUploadTests(TestCase):
     """Tests for the image upload API."""
